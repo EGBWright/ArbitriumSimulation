@@ -9,39 +9,67 @@
 #include "emp/math/random_utils.hpp"
 #include "emp/math/Random.hpp"
 
-#include "World.h"
+#include "Squirrel.h"
 
 // This is the main function for the NATIVE version of this project.
 EMP_BUILD_CONFIG(MyConfigType,
     VALUE(SEED, int, 10, "What value should the random seed be?"), 
     VALUE(START_PROB, double, 0.5, "What cooperation probability value should the starting organism have?"),
-    VALUE(FILE_NAME, std::string, "_data.dat", "Root output file name")
+    VALUE(FILE_NAME, std::string, "_data.dat", "Root output file name"),
+    VALUE(BURST_SIZE, int, 4, "B, Number of viruses released by lysing a bacteria "),
+    VALUE(INFECTION_SUCCESS_RATE, float, 0.5,"b, Fraction of attempted infections on susceptible bacteria that are successful"),
+    VALUE(CARRYING_CAPACITY, int, 1000, "K, initial size of bacteria population"),
+    VALUE(ADSORPTION_RATE, float, 0.001, "a, adsorption rate of free phages to lysogens and susceptible bacteria"),
+    VALUE(PHAGE_DEPRECIATION, float, 0.01, "fraction of free phages who die at each period"),
+    VALUE(THRESHOLD_MEAN, float, 0.0, "mean threshold of arbitrium density for lysogeny to occur" ),
+    VALUE(INDUCTION_RATE, float, 0.0001, "alpha, Chance for a given lysogen to lyse in a certain time period" ),
+    VALUE(THRESHOLD_DEVIATION, float, 0.0, "standard deviation of arbitrium threshold"),
+    VALUE(LYSOGENY_RATE_MEAN, float, 0.5, "mean fraction of infections that enter lysogenic cycle, if arbitrium above threshold"),
+    VALUE(LYSOGENY_RATE_DEVIATION, float, 0.2,"what it says"),
+    VALUE(BACTERIA_GROWTH_RATE, float, 0.1, "logistic growth rate for bacteria and lysogens"),
+    VALUE(PERIODS, int, 1000, "number of periods per reset"),
+    VALUE(RESETS, int, 1, "number of resets")
 )
 
 int main(int argc, char* argv[])
 {
   MyConfigType config;
-  config.Read("MySettings.cfg");
-  bool success = config.Read("MySettings.cfg");
-  if(!success) config.Write("MySettings.cfg");
+  config.Read("Settings.cfg");
+  bool success = config.Read("Settings.cfg");
+  if(!success) config.Write("Settings.cfg");
   
   emp::vector<std::string> args = emp::cl::args_to_strings(argc, argv);
 
-  emp::Random random(2);
+  emp::Random random(config.SEED());
   OrgWorld world(random);
 
-  world.SetupOrgFile("Org_Vals_1.dat");
+  world.SetupOrgFile(config.FILE_NAME());
   
+  emp::Random * sploink = &random;
 
-  emp::Ptr<Organism> new_org = new Organism(&random, 0.5);
+  emp::Ptr<Organism> new_org = new Organism(&random, config.LYSOGENY_RATE_MEAN(), config.THRESHOLD_MEAN());
   world.Inject(*new_org);
   world.Resize(100,100);
+  std::vector<emp::Ptr<Organism>> phage_array = {new_org};
+  world.setCARRYING_CAPACITY(config.CARRYING_CAPACITY() );
+  world.setBACTERIA_POP(config.CARRYING_CAPACITY() );
+  world.setLYSOGEN_POP(0);
+  world.setBACTERIA_GROWTH_RATE(config.BACTERIA_GROWTH_RATE() );
+  world.setBURST_SIZE(config.BURST_SIZE());
+  world.setPHAGE_POP(phage_array.size());
+  world.initPHAGE_ARRAY(phage_array);
   
-  for(int i=0; i<1000; i++) {
-    std::cout<< "Update: " << i << std::endl;
+  
+  for(int i=0; i<10; i++) {
+    //std::cout<< "Update: " << std::min(sploink->GetRandNormal(0.5, 0.2),double 0.0) << std::endl;
     std::cout << "Population: " << world.GetNumOrgs() << std::endl;
     world.Update();
   }
+  size_t max = 200;
+  size_t min = 0;
+  size_t nums = 8;
 
-
+  emp::vector<size_t> vals =  RandomUIntVector(random, nums, min, max);
+  std::cout << "aaaah " << vals.at(3) << "  " << vals.at(4) << std::endl;
+  
 }
