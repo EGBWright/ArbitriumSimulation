@@ -27,6 +27,7 @@ class OrgWorld : public emp::World<Organism> {
     float INDUCTION_RATE;
     float BACTERIA_GROWTH_RATE;
     int ARBITRIUM;
+    float ARBITRIUM_RATE;
 
 
     emp::Ptr<emp::DataMonitor<double, emp::data::Histogram>> data_node_orgcoop;
@@ -117,7 +118,6 @@ class OrgWorld : public emp::World<Organism> {
     }
     phage->mutate();
     PHAGE_POP = PHAGE_POP + BURST_SIZE - 1;
-    BACTERIA_POP -= 1;
   }
 
   void removePhage(emp::Ptr<Organism> phage){
@@ -125,17 +125,99 @@ class OrgWorld : public emp::World<Organism> {
     PHAGE_ARRAY.pop_back();
   }
 
-  void Adsorption(){
+  void LysogenAdsorption(){
     size_t LtimesP = PHAGE_ARRAY.size() * LYSOGEN_ARRAY.size();
     size_t adsorptions = (size_t) (LtimesP * ADSORPTION_RATE) + 0.5;
-    
+    std::cout << adsorptions << std::endl;
+    size_t min = 0;
+    size_t max = PHAGE_ARRAY.size();
+    emp::vector<size_t> vals =  RandomUIntVector(random, adsorptions, min,max);
+    std::vector<emp::Ptr<Organism>> victims (0);
+    for (auto val : vals){
+      emp::Ptr<Organism> phage = PHAGE_ARRAY.at(val);
+      std::cout << val << "  " << &PHAGE_ARRAY.at(val) << std::endl;
+      victims.push_back(phage);
+
+    }
+    std::cout << "victims: {";
+    for (auto victim : victims){
+      std::cout << victim->getLysogenyProb() << " ";
+      removePhage(victim);
+    }
+    std::cout << "}" <<std::endl;
+    std::cout << "phage vector: {";
+      for (auto phage : PHAGE_ARRAY){
+        std::cout << phage->getLysogenyProb() << " ";
+      
+      }
+      std::cout << "}" <<std::endl;
+
+
+  }
+
+  void Infection(){
+    size_t StimesP = BACTERIA_POP * PHAGE_ARRAY.size();
+    float failure_rate = 1 - INFECTION_SUCCESS_RATE;
+    size_t num_failures = (size_t) ((StimesP * ADSORPTION_RATE)*(failure_rate)) + 0.5 ;
+    std::cout << StimesP << " " << ADSORPTION_RATE << " " << failure_rate << " " << num_failures << std::endl;
+    size_t min = 0;
+    size_t max = PHAGE_ARRAY.size();
+    emp::vector<size_t> vals =  RandomUIntVector(random, num_failures, min,max);
+    std::vector<emp::Ptr<Organism>> failures (0);
+    for (auto val : vals){
+      emp::Ptr<Organism> phage = PHAGE_ARRAY.at(val);
+      std::cout << val << "  " << &PHAGE_ARRAY.at(val) << std::endl;
+      failures.push_back(phage);
+
+    }
+    std::cout << "failures: {";
+    for (auto failure : failures){
+      std::cout << failure->getLysogenyProb() << " ";
+      removePhage(failure);
+    }
+    std::cout << "}" <<std::endl;
+    size_t num_infections = (size_t) ((StimesP * ADSORPTION_RATE)*(INFECTION_SUCCESS_RATE)) + 0.5 ;
+    std::cout << num_infections << std::endl;
+    size_t new_max = PHAGE_ARRAY.size();
+    vals.clear();
+    vals =  RandomUIntVector(random, num_infections, min,new_max);
+    std::vector<emp::Ptr<Organism>> infections (0);
+    for (auto val : vals){
+      emp::Ptr<Organism> phage = PHAGE_ARRAY.at(val);
+      std::cout << val << "  " << &PHAGE_ARRAY.at(val) << std::endl;
+      infections.push_back(phage);
+
+    }
+    std::cout << "infections: {";
+    for (auto infection : infections){
+      std::cout << infection->getLysogenyProb() << " ";
+      BACTERIA_POP -=1;
+      ARBITRIUM_RATE = (float) ARBITRIUM/ CARRYING_CAPACITY;
+      if (ARBITRIUM_RATE>= infection->getThreshold()){
+        if (random.GetDouble(0, 1) < infection->getLysogenyProb()){
+          Lysogeny(infection);
+        }
+      }
+      else{
+        Lysis(infection);
+      }
+    }
+    ARBITRIUM += 1;
+    std::cout << "}" <<std::endl;
+    std::cout << "phage vector: {";
+      for (auto phage : PHAGE_ARRAY){
+        std::cout << phage->getLysogenyProb() << " ";
+      
+      }
+      std::cout << "}" <<std::endl;
+
+
   }
 
   void Lysogeny (emp::Ptr<Organism> phage) {
     LYSOGEN_ARRAY.push_back(phage);
     LYSOGEN_POP += 1;
     PHAGE_POP -= 1;
-    BACTERIA_POP -= 1;
     std::cout << " LYSOGENY BEFORE" <<PHAGE_ARRAY.size() << std::endl;
     std::remove(PHAGE_ARRAY.begin(),PHAGE_ARRAY.end(),phage);
     PHAGE_ARRAY.pop_back();
@@ -152,7 +234,7 @@ class OrgWorld : public emp::World<Organism> {
 
       emp::vector<size_t> schedule = emp::GetPermutation(random, GetSize());
       double total_coop = 0;
-      BACTERIA_POP -= 100;
+      BACTERIA_POP -= 10 ;
       if (BACTERIA_POP < 0) {
         BACTERIA_POP=0;
       }

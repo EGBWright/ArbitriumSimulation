@@ -55,7 +55,9 @@ int main(int argc, char* argv[])
   world.setBACTERIA_POP(config.CARRYING_CAPACITY() );
   world.setLYSOGEN_POP(0);
   world.setBACTERIA_GROWTH_RATE(config.BACTERIA_GROWTH_RATE() );
+  world.setINFECTION_SUCCESS_RATE(config.INFECTION_SUCCESS_RATE());
   world.setBURST_SIZE(config.BURST_SIZE());
+  world.setADSORPTION_RATE(config.ADSORPTION_RATE());
   world.setPHAGE_POP(phage_array.size());
   world.initPHAGE_ARRAY(phage_array);
   
@@ -70,6 +72,6 @@ int main(int argc, char* argv[])
   size_t nums = 8;
 
   emp::vector<size_t> vals =  RandomUIntVector(random, nums, min, max);
-  std::cout << "aaaah " << vals.at(3) << "  " << vals.at(4) << std::endl;
-  
+  std::cout << "aaaahhh " << vals.at(3) << "  " << vals.at(4) << std::endl;
+  world.Infection();
 }
