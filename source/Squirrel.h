@@ -108,7 +108,7 @@ class OrgWorld : public emp::World<Organism> {
     return file;
   }
   void Growth() {
-    int empty = CARRYING_CAPACITY - BACTERIA_POP - LYSOGEN_POP;
+    int empty = CARRYING_CAPACITY - BACTERIA_POP - LYSOGEN_ARRAY.size();
     int new_bacteria = (int) ((BACTERIA_POP * empty * BACTERIA_GROWTH_RATE) / CARRYING_CAPACITY)+ 0.5;
     BACTERIA_POP = BACTERIA_POP + new_bacteria;
   }
@@ -193,68 +193,39 @@ class OrgWorld : public emp::World<Organism> {
       std::cout << infection->getLysogenyProb() << " ";
       BACTERIA_POP -=1;
       ARBITRIUM_RATE = (float) ARBITRIUM/ CARRYING_CAPACITY;
-      if (ARBITRIUM_RATE>= infection->getThreshold()){
-        if (random.GetDouble(0, 1) < infection->getLysogenyProb()){
-          Lysogeny(infection);
-        }
-      }
-      else{
+      if ((ARBITRIUM_RATE>= infection->getThreshold())&& (random.GetDouble(0, 1) < infection->getLysogenyProb())){
+        Lysogeny(infection);
+      } else{
         Lysis(infection);
       }
+      ARBITRIUM += 1;
     }
-    ARBITRIUM += 1;
-    std::cout << "}" <<std::endl;
-    std::cout << "phage vector: {";
-      for (auto phage : PHAGE_ARRAY){
-        std::cout << phage->getLysogenyProb() << " ";
       
-      }
-      std::cout << "}" <<std::endl;
-
-
   }
-
+    
   void Lysogeny (emp::Ptr<Organism> phage) {
     LYSOGEN_ARRAY.push_back(phage);
     LYSOGEN_POP += 1;
     PHAGE_POP -= 1;
-    std::cout << " LYSOGENY BEFORE" <<PHAGE_ARRAY.size() << std::endl;
+    //std::cout << " LYSOGENY BEFORE" <<PHAGE_ARRAY.size() << std::endl;
     std::remove(PHAGE_ARRAY.begin(),PHAGE_ARRAY.end(),phage);
     PHAGE_ARRAY.pop_back();
     std::cout << " LYSOGENY AFTER" <<PHAGE_ARRAY.size() << std::endl;
-    std::cout << "phage vector after lysogeny: {";
-      for (auto phage : PHAGE_ARRAY){
-        std::cout << phage->getLysogenyProb() << " ";
+    //std::cout << "phage vector after lysogeny: {";
+      //for (auto phage : PHAGE_ARRAY){
+        //std::cout << phage->getLysogenyProb() << " ";
       
-      }
-      std::cout << "}" <<std::endl;
+      //}
+      //std::cout << "}" <<std::endl;
   }
   void Update() {
       emp::World<Organism>::Update();
 
-      emp::vector<size_t> schedule = emp::GetPermutation(random, GetSize());
-      double total_coop = 0;
-      BACTERIA_POP -= 10 ;
-      if (BACTERIA_POP < 0) {
-        BACTERIA_POP=0;
-      }
+      
       std::cout << "bacteria pop before growth: " << BACTERIA_POP <<std::endl;
       Growth();
-      for (size_t i: schedule) {
-          if (IsOccupied(i) == false) continue; 
-
-          emp::Ptr<Organism> offspring = pop[i]->Reproduce();
-          if(offspring) {
-              DoBirth(*offspring, i);
-          }
-      
-          total_coop += pop[i]->getLysogenyProb();
-
-      }
-      std::cout << "Average cooperation probability: " << total_coop/GetNumOrgs() <<std::endl;
-    
-      emp::Ptr<Organism> back_ptr = PHAGE_ARRAY.back();
-      Lysis(back_ptr);
+      std::cout << "bacteria pop after growth: " << BACTERIA_POP <<std::endl;
+      Infection();
       std::cout << "phage vector: {";
       for (auto phage : PHAGE_ARRAY){
         std::cout << phage->getLysogenyProb() << " ";
@@ -262,8 +233,6 @@ class OrgWorld : public emp::World<Organism> {
       }
       std::cout << "}" <<std::endl;
       
-      emp::Ptr<Organism> front_ptr = PHAGE_ARRAY.front();
-      Lysogeny(front_ptr);
       std::cout << "lysogeny vector: {";
       for (auto phage : LYSOGEN_ARRAY){
         std::cout << phage->getLysogenyProb() << " ";

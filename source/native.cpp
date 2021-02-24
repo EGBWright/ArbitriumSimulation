@@ -28,7 +28,8 @@ EMP_BUILD_CONFIG(MyConfigType,
     VALUE(LYSOGENY_RATE_DEVIATION, float, 0.2,"what it says"),
     VALUE(BACTERIA_GROWTH_RATE, float, 0.1, "logistic growth rate for bacteria and lysogens"),
     VALUE(PERIODS, int, 1000, "number of periods per reset"),
-    VALUE(RESETS, int, 1, "number of resets")
+    VALUE(RESETS, int, 1, "number of resets"),
+    VALUE(STARTING_PHAGES, int, 10, "initial number of phages in the")
 )
 
 int main(int argc, char* argv[])
@@ -46,11 +47,23 @@ int main(int argc, char* argv[])
   world.SetupOrgFile(config.FILE_NAME());
   
   emp::Random * sploink = &random;
+  float newRate;
+  float newThreshold;
+  std::vector<emp::Ptr<Organism>> phage_array;
+  //emp::Ptr<Organism> new_org;
+  for (int i=0; i < config.STARTING_PHAGES(); i++){
+    newRate = sploink->GetRandNormal(config.LYSOGENY_RATE_MEAN(),config.LYSOGENY_RATE_DEVIATION());
+    newRate = std::min(newRate,1.0f);
+    newRate = std::max(newRate,0.0f);
+    newThreshold = sploink->GetRandNormal(config.THRESHOLD_MEAN(),config.THRESHOLD_DEVIATION());
+    newThreshold = std::min(newThreshold,1.0f);
+    newThreshold = std::max(newThreshold,0.0f);
+    //new_org =
+    phage_array.push_back(new Organism(&random, newRate, newThreshold));
 
-  emp::Ptr<Organism> new_org = new Organism(&random, config.LYSOGENY_RATE_MEAN(), config.THRESHOLD_MEAN());
-  world.Inject(*new_org);
-  world.Resize(100,100);
-  std::vector<emp::Ptr<Organism>> phage_array = {new_org};
+  }
+  
+  world.Resize(1000,1000);
   world.setCARRYING_CAPACITY(config.CARRYING_CAPACITY() );
   world.setBACTERIA_POP(config.CARRYING_CAPACITY() );
   world.setLYSOGEN_POP(0);
@@ -64,7 +77,7 @@ int main(int argc, char* argv[])
   
   for(int i=0; i<10; i++) {
     //std::cout<< "Update: " << std::min(sploink->GetRandNormal(0.5, 0.2),double 0.0) << std::endl;
-    std::cout << "Population: " << world.GetNumOrgs() << std::endl;
+    //std::cout << "Population: " << world.GetNumOrgs() << std::endl;
     world.Update();
   }
   size_t max = 200;
@@ -72,6 +85,6 @@ int main(int argc, char* argv[])
   size_t nums = 8;
 
   emp::vector<size_t> vals =  RandomUIntVector(random, nums, min, max);
-  std::cout << "aaaahhh " << vals.at(3) << "  " << vals.at(4) << std::endl;
+  std::cout << "aaaahh " << vals.at(3) << "  " << vals.at(4) << std::endl;
   world.Infection();
 }
