@@ -32,6 +32,7 @@ class OrgWorld : public emp::World<Organism> {
 
     emp::Ptr<emp::DataMonitor<double, emp::data::Histogram>> data_node_orgcoop;
     emp::Ptr<emp::DataMonitor<int>> data_node_orgcount;
+    emp::Ptr<emp::DataMonitor<float, emp::data::Histogram>> data_node_lysogeny_rate;
 
     public:
 
@@ -70,6 +71,7 @@ class OrgWorld : public emp::World<Organism> {
 
     }
 
+
     emp::DataMonitor<double, emp::data::Histogram>& GetOrgCoopValDataNode() {
         if (!data_node_orgcoop) {
         data_node_orgcoop.New();
@@ -83,12 +85,30 @@ class OrgWorld : public emp::World<Organism> {
         return *data_node_orgcoop;
     }
 
+    emp::DataMonitor<float, emp::data::Histogram>& GetLysogenyRateDataNode() {
+        if (!data_node_lysogeny_rate) {
+        data_node_lysogeny_rate.New();
+        OnUpdate([this](size_t){
+            data_node_lysogeny_rate->Reset();
+            for (auto phage : PHAGE_ARRAY)
+              data_node_lysogeny_rate->AddDatum(phage->getLysogenyProb());
+            for (auto lysogen : LYSOGEN_ARRAY)
+              data_node_lysogeny_rate->AddDatum(lysogen->getLysogenyProb());
+        });
+        }
+        return *data_node_lysogeny_rate;
+    }
+
     emp::DataFile & SetupOrgFile(const std::string & filename) {
     auto & file = SetupFile(filename);
     auto & node1 = GetOrgCountDataNode();
-    auto & node = GetOrgCoopValDataNode();
+    auto & node = GetLysogenyRateDataNode();
     node.SetupBins(0.0, 1.1, 10); //Necessary because range exclusive
     file.AddVar(update, "update", "Update");
+    file.AddVar(BACTERIA_POP, "bacteria_pop", "number of bacteria");
+    file.AddVar(PHAGE_POP, "phage_pop", "number of phages");
+    file.AddVar(LYSOGEN_POP, "lysogen_pop", "number of lysogens");
+    file.AddVar(ARBITRIUM, "arbitrium", "number of arbitrium peptides");
     file.AddMean(node, "mean_coopval", "Average organism cooperation value");
     file.AddTotal(node1, "count", "Total number of organisms");
     file.AddHistBin(node, 0, "Hist_0.0", "Count for histogram bin 0.0 to <0.1");
@@ -123,6 +143,7 @@ class OrgWorld : public emp::World<Organism> {
   void removePhage(emp::Ptr<Organism> phage){
     std::remove(PHAGE_ARRAY.begin(),PHAGE_ARRAY.end(),phage);
     PHAGE_ARRAY.pop_back();
+    PHAGE_POP = PHAGE_POP - 1;
   }
 
   void LysogenAdsorption(){
@@ -154,6 +175,41 @@ class OrgWorld : public emp::World<Organism> {
 
 
   }
+
+  void Infections(){
+    std::vector<emp::Ptr<Organism>> failures (0);
+    std::vector<emp::Ptr<Organism>> infections (0);
+    double adsorption_prob = BACTERIA_POP * ADSORPTION_RATE;
+    std::cout << adsorption_prob << std::endl;
+    for (auto phage : PHAGE_ARRAY){
+      if (random.GetDouble(0, 1) < adsorption_prob){
+        if ((float)random.GetDouble(0,1) < INFECTION_SUCCESS_RATE){
+          infections.push_back(phage);
+        } else {
+          failures.push_back(phage);
+        }
+      }
+    }
+    std::cout << infections.size() << " infections: {";
+    for (auto infection : infections){
+      std::cout << infection->getLysogenyProb() << " ";
+      BACTERIA_POP -=1;
+      ARBITRIUM_RATE = (float) ARBITRIUM/ CARRYING_CAPACITY;
+      if ((ARBITRIUM_RATE>= infection->getThreshold())&& (random.GetDouble(0, 1) < infection->getLysogenyProb())){
+        Lysogeny(infection);
+      } else{
+        Lysis(infection);
+      }
+      ARBITRIUM += 1;
+    }
+    std::cout << failures.size() << "failures: {";
+    for (auto failure : failures){
+      std::cout << failure->getLysogenyProb() << " ";
+      removePhage(failure);
+    }
+  }
+
+
 
   void Infection(){
     size_t StimesP = BACTERIA_POP * PHAGE_ARRAY.size();
@@ -225,7 +281,7 @@ class OrgWorld : public emp::World<Organism> {
       std::cout << "bacteria pop before growth: " << BACTERIA_POP <<std::endl;
       Growth();
       std::cout << "bacteria pop after growth: " << BACTERIA_POP <<std::endl;
-      Infection();
+      Infections();
       std::cout << "phage vector: {";
       for (auto phage : PHAGE_ARRAY){
         std::cout << phage->getLysogenyProb() << " ";

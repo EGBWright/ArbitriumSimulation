@@ -16,6 +16,7 @@ class OrgWorld : public emp::World<Organism> {
     
     emp::Ptr<emp::DataMonitor<double, emp::data::Histogram>> data_node_orgcoop;
     emp::Ptr<emp::DataMonitor<int>> data_node_orgcount;
+    
 
     public:
 

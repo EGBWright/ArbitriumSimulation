@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
   world.initPHAGE_ARRAY(phage_array);
   
   
-  for(int i=0; i<10; i++) {
+  for(int i=0; i< config.PERIODS(); i++) {
     //std::cout<< "Update: " << std::min(sploink->GetRandNormal(0.5, 0.2),double 0.0) << std::endl;
     //std::cout << "Population: " << world.GetNumOrgs() << std::endl;
     world.Update();
@@ -86,5 +86,4 @@ int main(int argc, char* argv[])
 
   emp::vector<size_t> vals =  RandomUIntVector(random, nums, min, max);
   std::cout << "aaaahh " << vals.at(3) << "  " << vals.at(4) << std::endl;
-  world.Infection();
 }
