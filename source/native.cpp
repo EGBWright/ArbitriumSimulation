@@ -73,6 +73,7 @@ int main(int argc, char* argv[])
   world.setADSORPTION_RATE(config.ADSORPTION_RATE());
   world.setPHAGE_POP(phage_array.size());
   world.initPHAGE_ARRAY(phage_array);
+  world.setINDUCTION_RATE(config.INDUCTION_RATE());
   
   
   for(int i=0; i< config.PERIODS(); i++) {
