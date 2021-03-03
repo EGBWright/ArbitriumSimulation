@@ -16,6 +16,7 @@ EMP_BUILD_CONFIG(MyConfigType,
     VALUE(SEED, int, 10, "What value should the random seed be?"), 
     VALUE(START_PROB, double, 0.5, "What cooperation probability value should the starting organism have?"),
     VALUE(FILE_NAME, std::string, "_data.dat", "Root output file name"),
+    VALUE(FILE_PATH, std::string, "", "file path"),
     VALUE(BURST_SIZE, int, 4, "B, Number of viruses released by lysing a bacteria "),
     VALUE(INFECTION_SUCCESS_RATE, float, 0.5,"b, Fraction of attempted infections on susceptible bacteria that are successful"),
     VALUE(CARRYING_CAPACITY, int, 1000, "K, initial size of bacteria population"),
@@ -45,12 +46,22 @@ int main(int argc, char* argv[])
   bool success = config.Read("Settings.cfg");
   if(!success) config.Write("Settings.cfg");
   
-  emp::vector<std::string> args = emp::cl::args_to_strings(argc, argv);
+  auto args = emp::cl::ArgManager(argc, argv);
+  if (args.ProcessConfigOptions(config, std::cout, "Settings.cfg") == false) {
+  std::cerr << "There was a problem in processing the options file." << std::endl;
+  exit(1);
+  }
+  if (args.TestUnknown() == false) {
+  std::cerr << "Leftover args no good." << std::endl;
+  exit(1);
+  }
+
+  //emp::vector<std::string> args = emp::cl::args_to_strings(argc, argv);
 
   emp::Random random(config.SEED());
   OrgWorld world(random);
-
-  world.SetupOrgFile(config.FILE_NAME()).SetTimingRepeat(1);
+  std::string file_full = config.FILE_PATH()+std::to_string(config.SEED())+config.FILE_NAME();
+  world.SetupOrgFile(file_full).SetTimingRepeat(config.TIMING_REPEAT());
   
   emp::Random * sploink = &random;
   double newRate;
@@ -97,5 +108,5 @@ int main(int argc, char* argv[])
     world.Update();
     }
   }
-  std::cout << "aaaahh " << "Data File:   " << config.FILE_NAME() << std::endl;
+  std::cout << "aaaahh " << "Data File:   " << file_full << std::endl;
 }
