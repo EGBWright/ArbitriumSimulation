@@ -27,10 +27,13 @@ class OrgWorld : public emp::World<Organism> {
     float INDUCTION_RATE;
     float BACTERIA_GROWTH_RATE;
     int ARBITRIUM;
-    float ARBITRIUM_RATE;
+    int STARTING_PHAGES;
+    float ARBITIUM_DECAY_RATE; 
 
 
     emp::Ptr<emp::DataMonitor<float, emp::data::Histogram>> data_node_lysogeny_rate;
+    emp::Ptr<emp::DataMonitor<float, emp::data::Histogram>> data_node_threshold;
+    emp::Ptr<emp::DataMonitor<float, emp::data::Histogram>> data_node_evolvers;
 
     public:
 
@@ -40,6 +43,8 @@ class OrgWorld : public emp::World<Organism> {
 
     ~OrgWorld() {
         if(data_node_lysogeny_rate) data_node_lysogeny_rate.Delete();
+        if(data_node_threshold) data_node_threshold.Delete();
+        if(data_node_evolvers) data_node_evolvers.Delete();
 
     }
     
@@ -53,6 +58,8 @@ class OrgWorld : public emp::World<Organism> {
     void setPHAGE_DEPRECIATION(float _in){PHAGE_DEPRECIATION = _in;}
     void setINDUCTION_RATE(float _in){INDUCTION_RATE = _in;}
     void setBACTERIA_GROWTH_RATE(float _in){BACTERIA_GROWTH_RATE = _in;}
+    void setSTARTING_PHAGES(int _in){STARTING_PHAGES = _in;}
+    void setARBITIUM_DECAY_RATE(int _in){ARBITIUM_DECAY_RATE = _in;}
     void initPHAGE_ARRAY(std::vector<emp::Ptr<Organism>> _in) {PHAGE_ARRAY = _in;}
     void initLYSOGEN_ARRAY(std::vector<emp::Ptr<Organism>> _in) {LYSOGEN_ARRAY = _in;}
 
@@ -70,9 +77,39 @@ class OrgWorld : public emp::World<Organism> {
         return *data_node_lysogeny_rate;
     }
 
+    emp::DataMonitor<float, emp::data::Histogram>& GetThresholdDataNode() {
+        if (!data_node_threshold) {
+        data_node_threshold.New();
+        OnUpdate([this](size_t){
+            data_node_threshold->Reset();
+            for (auto phage : PHAGE_ARRAY)
+              data_node_threshold->AddDatum(phage->getThreshold());
+            for (auto lysogen : LYSOGEN_ARRAY)
+              data_node_threshold->AddDatum(lysogen->getThreshold());
+        });
+        }
+        return *data_node_threshold;
+    }
+
+    emp::DataMonitor<float, emp::data::Histogram>& GetEvolversDataNode() {
+        if (!data_node_evolvers) {
+        data_node_evolvers.New();
+        OnUpdate([this](size_t){
+            data_node_evolvers->Reset();
+            for (auto phage : PHAGE_ARRAY)
+              data_node_evolvers->AddDatum((phage->getThresholdMutRate() == 0.0)? 0.0f : 1.0f);
+            for (auto lysogen : LYSOGEN_ARRAY)
+              data_node_evolvers->AddDatum((lysogen->getThresholdMutRate() == 0.0)? 0.0f : 1.0f);
+        });
+        }
+        return *data_node_evolvers;
+    }
+
     emp::DataFile & SetupOrgFile(const std::string & filename) {
     auto & file = SetupFile(filename);
     auto & node = GetLysogenyRateDataNode();
+    auto & node1 = GetThresholdDataNode();
+    auto & node2 = GetEvolversDataNode();
     node.SetupBins(0.0, 1.1, 10); //Necessary because range exclusive
     file.AddVar(update, "update", "Update");
     file.AddVar(BACTERIA_POP, "bacteria_pop", "number of bacteria");
@@ -80,6 +117,9 @@ class OrgWorld : public emp::World<Organism> {
     file.AddVar(LYSOGEN_POP, "lysogen_pop", "number of lysogens");
     file.AddVar(ARBITRIUM, "arbitrium", "number of arbitrium peptides");
     file.AddMean(node, "mean_lysogeny_rate", "Average organism lysogeny rate");
+    file.AddMean(node1, "mean_threshold", "Average arbitrium threshold");
+    file.AddMean(node2, "evolver_pct", "proportion of population whose arbitrium threshold is evolving/mutating");
+    /*
     file.AddHistBin(node, 0, "Hist_0.0", "Count for histogram bin 0.0 to <0.1");
     file.AddHistBin(node, 1, "Hist_0.1", "Count for histogram bin 0.1 to <0.2");
     file.AddHistBin(node, 2, "Hist_0.2", "Count for histogram bin 0.2 to <0.3");
@@ -90,12 +130,47 @@ class OrgWorld : public emp::World<Organism> {
     file.AddHistBin(node, 7, "Hist_0.7", "Count for histogram bin 0.7 to <0.8");
     file.AddHistBin(node, 8, "Hist_0.8", "Count for histogram bin 0.8 to <0.9");
     file.AddHistBin(node, 9, "Hist_0.9", "Count for histogram bin 0.9 to 1.0");
+    */
 
 
     file.PrintHeaderKeys();
 
     return file;
   }
+  void Reset(){
+    BACTERIA_POP = CARRYING_CAPACITY;
+    ARBITRIUM = 0;
+    for (auto lysogen : LYSOGEN_ARRAY){
+      for (int i=0; i< BURST_SIZE;i++){
+        PHAGE_ARRAY.push_back(lysogen->Reproduce());
+      }
+      PHAGE_POP = PHAGE_POP + BURST_SIZE;
+      //PHAGE_ARRAY.push_back(lysogen);
+      //PHAGE_POP += 1;
+    }
+    LYSOGEN_ARRAY.clear();
+    LYSOGEN_POP=0;
+    if (PHAGE_POP > STARTING_PHAGES){
+      size_t max = 200;
+      size_t min = 0;
+      size_t nums = (size_t) STARTING_PHAGES;
+
+      emp::vector<size_t> vals =  RandomUIntVector(random, nums, min, max);
+      std::vector<emp::Ptr<Organism>> NEW_PHAGE_ARRAY;
+      for (auto val : vals){
+        NEW_PHAGE_ARRAY.push_back(PHAGE_ARRAY.at(val));
+      }
+      PHAGE_ARRAY = NEW_PHAGE_ARRAY;
+      PHAGE_POP = STARTING_PHAGES;
+    }
+    
+  }
+
+  void ArbitriumDecay(){
+    int arbitrium_lost = (int) ARBITIUM_DECAY_RATE * ARBITRIUM + 0.5f;
+    ARBITRIUM -= arbitrium_lost;
+  }
+
   void Growth() {
     int empty = CARRYING_CAPACITY - BACTERIA_POP - LYSOGEN_ARRAY.size();
     int new_bacteria = (int) ((BACTERIA_POP * empty * BACTERIA_GROWTH_RATE) / CARRYING_CAPACITY)+ 0.5;
@@ -135,9 +210,9 @@ class OrgWorld : public emp::World<Organism> {
   void LysogenAdsorption(){
     std::vector<emp::Ptr<Organism>> victims (0);
     double adsorption_prob = LYSOGEN_POP * ADSORPTION_RATE;
-    std::cout << adsorption_prob << std::endl;
+    //std::cout << adsorption_prob << std::endl;
     for (auto phage : PHAGE_ARRAY){
-      if (random.GetDouble(0, 1) < adsorption_prob){
+      if ((random.GetDouble(0, 1) < adsorption_prob) || ((float) random.GetDouble(0, 1) < PHAGE_DEPRECIATION)){
         victims.push_back(phage);
       }
     }
@@ -148,14 +223,14 @@ class OrgWorld : public emp::World<Organism> {
     }
   }
   void Induction(){
-    std::cout << "induction reached" << std::endl;
+    //std::cout << "induction reached" << std::endl;
     std::vector<emp::Ptr<Organism>> inducers (0);
     for (auto lysogen : LYSOGEN_ARRAY){
       if ((float)random.GetDouble(0,1) < INDUCTION_RATE){
         inducers.push_back(lysogen);
       }
     }
-    std::cout << inducers.size() << " inducers: { " << std::endl;
+    //std::cout << inducers.size() << " inducers: { " << std::endl;
     for (auto inducer : inducers){
       for (int i=0; i< BURST_SIZE;i++){
         PHAGE_ARRAY.push_back(inducer->Reproduce());
@@ -169,7 +244,7 @@ class OrgWorld : public emp::World<Organism> {
     std::vector<emp::Ptr<Organism>> failures (0);
     std::vector<emp::Ptr<Organism>> infections (0);
     double adsorption_prob = BACTERIA_POP * ADSORPTION_RATE;
-    std::cout << adsorption_prob << std::endl;
+    //std::cout << adsorption_prob << std::endl;
     for (auto phage : PHAGE_ARRAY){
       if (random.GetDouble(0, 1) < adsorption_prob){
         if ((float)random.GetDouble(0,1) < INFECTION_SUCCESS_RATE){
@@ -183,7 +258,7 @@ class OrgWorld : public emp::World<Organism> {
     for (auto infection : infections){
       //std::cout << infection->getLysogenyProb() << " ";
       BACTERIA_POP -=1;
-      ARBITRIUM_RATE = (float) ARBITRIUM/ CARRYING_CAPACITY;
+      float ARBITRIUM_RATE = (float) ARBITRIUM/ CARRYING_CAPACITY;
       if ((ARBITRIUM_RATE>= infection->getThreshold())&& (random.GetDouble(0, 1) < infection->getLysogenyProb())){
         Lysogeny(infection);
       } else{
@@ -204,40 +279,40 @@ class OrgWorld : public emp::World<Organism> {
     size_t StimesP = BACTERIA_POP * PHAGE_ARRAY.size();
     float failure_rate = 1 - INFECTION_SUCCESS_RATE;
     size_t num_failures = (size_t) ((StimesP * ADSORPTION_RATE)*(failure_rate)) + 0.5 ;
-    std::cout << StimesP << " " << ADSORPTION_RATE << " " << failure_rate << " " << num_failures << std::endl;
+    //std::cout << StimesP << " " << ADSORPTION_RATE << " " << failure_rate << " " << num_failures << std::endl;
     size_t min = 0;
     size_t max = PHAGE_ARRAY.size();
     emp::vector<size_t> vals =  RandomUIntVector(random, num_failures, min,max);
     std::vector<emp::Ptr<Organism>> failures (0);
     for (auto val : vals){
       emp::Ptr<Organism> phage = PHAGE_ARRAY.at(val);
-      std::cout << val << "  " << &PHAGE_ARRAY.at(val) << std::endl;
+      //std::cout << val << "  " << &PHAGE_ARRAY.at(val) << std::endl;
       failures.push_back(phage);
 
     }
-    std::cout << "failures: {";
+    //std::cout << "failures: {";
     for (auto failure : failures){
-      std::cout << failure->getLysogenyProb() << " ";
+      //std::cout << failure->getLysogenyProb() << " ";
       removePhage(failure);
     }
-    std::cout << "}" <<std::endl;
+    //std::cout << "}" <<std::endl;
     size_t num_infections = (size_t) ((StimesP * ADSORPTION_RATE)*(INFECTION_SUCCESS_RATE)) + 0.5 ;
-    std::cout << num_infections << std::endl;
+    //std::cout << num_infections << std::endl;
     size_t new_max = PHAGE_ARRAY.size();
     vals.clear();
     vals =  RandomUIntVector(random, num_infections, min,new_max);
     std::vector<emp::Ptr<Organism>> infections (0);
     for (auto val : vals){
       emp::Ptr<Organism> phage = PHAGE_ARRAY.at(val);
-      std::cout << val << "  " << &PHAGE_ARRAY.at(val) << std::endl;
+      //std::cout << val << "  " << &PHAGE_ARRAY.at(val) << std::endl;
       infections.push_back(phage);
 
     }
-    std::cout << "infections: {";
+    //std::cout << "infections: {";
     for (auto infection : infections){
-      std::cout << infection->getLysogenyProb() << " ";
+      //std::cout << infection->getLysogenyProb() << " ";
       BACTERIA_POP -=1;
-      ARBITRIUM_RATE = (float) ARBITRIUM/ CARRYING_CAPACITY;
+      float ARBITRIUM_RATE = (float) ARBITRIUM/ CARRYING_CAPACITY;
       if ((ARBITRIUM_RATE>= infection->getThreshold())&& (random.GetDouble(0, 1) < infection->getLysogenyProb())){
         Lysogeny(infection);
       } else{
@@ -255,7 +330,7 @@ class OrgWorld : public emp::World<Organism> {
     //std::cout << " LYSOGENY BEFORE" <<PHAGE_ARRAY.size() << std::endl;
     std::remove(PHAGE_ARRAY.begin(),PHAGE_ARRAY.end(),phage);
     PHAGE_ARRAY.pop_back();
-    std::cout << " LYSOGENY AFTER" <<PHAGE_ARRAY.size() << std::endl;
+    //std::cout << " LYSOGENY AFTER" <<PHAGE_ARRAY.size() << std::endl;
     //std::cout << "phage vector after lysogeny: {";
       //for (auto phage : PHAGE_ARRAY){
         //std::cout << phage->getLysogenyProb() << " ";

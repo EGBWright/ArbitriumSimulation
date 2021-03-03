@@ -29,7 +29,13 @@ EMP_BUILD_CONFIG(MyConfigType,
     VALUE(BACTERIA_GROWTH_RATE, float, 0.1, "logistic growth rate for bacteria and lysogens"),
     VALUE(PERIODS, int, 1000, "number of periods per reset"),
     VALUE(RESETS, int, 1, "number of resets"),
-    VALUE(STARTING_PHAGES, int, 10, "initial number of phages in the")
+    VALUE(STARTING_PHAGES, int, 10, "initial number of phages in the"),
+    VALUE(ARBITIUM_DECAY_RATE, float, 0.01, "percent of Arbitrium lost each period"),
+    VALUE(THRESHOLD_EVOLVERS, float, 1.0, "initial percent of phages whose threshold values mutate"),
+    VALUE(THRESHOLD_MUT_RATE, double , 0.002, "the standard deviation of mutation for threshold evolvers"),
+    VALUE(LYSOGENY_MUT_RATE, double , 0.002, "the standard deviation of mutation for Lysogeny rate"),
+    VALUE(TIMING_REPEAT, int , 1 , "how often data are recorded in the data file")
+
 )
 
 int main(int argc, char* argv[])
@@ -44,22 +50,30 @@ int main(int argc, char* argv[])
   emp::Random random(config.SEED());
   OrgWorld world(random);
 
-  world.SetupOrgFile(config.FILE_NAME());
+  world.SetupOrgFile(config.FILE_NAME()).SetTimingRepeat(1);
   
   emp::Random * sploink = &random;
-  float newRate;
-  float newThreshold;
+  double newRate;
+  double newThreshold;
+  double newThresholdMutationRate; 
   std::vector<emp::Ptr<Organism>> phage_array;
+  int evolvers = (int) config.THRESHOLD_EVOLVERS() * config.STARTING_PHAGES() + 0.5f;
   //emp::Ptr<Organism> new_org;
+
   for (int i=0; i < config.STARTING_PHAGES(); i++){
     newRate = sploink->GetRandNormal(config.LYSOGENY_RATE_MEAN(),config.LYSOGENY_RATE_DEVIATION());
-    newRate = std::min(newRate,1.0f);
-    newRate = std::max(newRate,0.0f);
+    newRate = std::min(newRate,1.0 );
+    newRate = std::max(newRate,0.0);
     newThreshold = sploink->GetRandNormal(config.THRESHOLD_MEAN(),config.THRESHOLD_DEVIATION());
-    newThreshold = std::min(newThreshold,1.0f);
-    newThreshold = std::max(newThreshold,0.0f);
-    //new_org =
-    phage_array.push_back(new Organism(&random, newRate, newThreshold));
+    newThreshold = std::min(newThreshold,1.0);
+    newThreshold = std::max(newThreshold,0.0);
+    if (i < evolvers){
+      newThresholdMutationRate = config.THRESHOLD_MUT_RATE();
+    }
+    else {
+      newThresholdMutationRate = (double) 0.0;
+    }
+    phage_array.push_back(new Organism(&random, newRate, newThreshold, newThresholdMutationRate, config.LYSOGENY_MUT_RATE()));
 
   }
   
@@ -74,17 +88,14 @@ int main(int argc, char* argv[])
   world.setPHAGE_POP(phage_array.size());
   world.initPHAGE_ARRAY(phage_array);
   world.setINDUCTION_RATE(config.INDUCTION_RATE());
+  world.setPHAGE_DEPRECIATION(config.PHAGE_DEPRECIATION());
+  world.setSTARTING_PHAGES(config.STARTING_PHAGES());
   
-  
-  for(int i=0; i< config.PERIODS(); i++) {
-    //std::cout<< "Update: " << std::min(sploink->GetRandNormal(0.5, 0.2),double 0.0) << std::endl;
-    //std::cout << "Population: " << world.GetNumOrgs() << std::endl;
+  for (int i=0; i<config.RESETS(); i++){
+    world.Reset();
+    for(int i=0; i< config.PERIODS(); i++) {
     world.Update();
+    }
   }
-  size_t max = 200;
-  size_t min = 0;
-  size_t nums = 8;
-
-  emp::vector<size_t> vals =  RandomUIntVector(random, nums, min, max);
-  std::cout << "aaaahh " << vals.at(3) << "  " << vals.at(4) << std::endl;
+  std::cout << "aaaahh " << "Data File:   " << config.FILE_NAME() << std::endl;
 }
