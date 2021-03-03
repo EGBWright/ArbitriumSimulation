@@ -14,7 +14,7 @@ outFile = open(outputFileName, 'w')
 outFile.write(header)
 
 for t in periods:
-    for r in reps:
+    for r in seeds:
         fname = folder + str(r) + "periods" + t + ".dat"
         uid = t + "_" + str(r)
         curFile = open(fname, 'r')
