@@ -4,11 +4,11 @@ import gzip
 folder = ''
 
 #periods_resets = [[25,4000],[50,2000],[100,1000],[200,500],[400,250],[1000,100]]
-periods = ["25","50","100","200","400","1000"]
+periods = ["50","100","112","125","140","175","200","400"]
 seeds = range(10, 21)
 header = "uid period seed update bacteria_pop phage_pop lysogen_pop arbitrium mean_lysogeny_rate mean_threshold evolver_pct\n"
 
-outputFileName = "munged_basic.dat"
+outputFileName = "munged_basic3.dat"
 
 outFile = open(outputFileName, 'w')
 outFile.write(header)
