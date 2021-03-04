@@ -1,6 +1,6 @@
 #a script to run several replicates of several treatments locally
 
-directory = "NoThreshold/"
+directory = "NoThreshold2/"
 seeds = range(10, 21)
 periods_resets = [[50,4200],[100,2100],[112,1875],[125,1680],[140,1500],[175,1200],[200,1050],[400,1500]]
 
