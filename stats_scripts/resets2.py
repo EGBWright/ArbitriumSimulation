@@ -24,7 +24,7 @@ cmd("cp Settings.cfg "+directory)
 
 for a in seeds:
     for b in periods_resets:
-        command_str = './evo-algo -SEED '+str(a)+' -PERIODS '+str(b[0]) +' -RESETS '+str(b[1]*3)+' -FILE_PATH '+directory+' -FILE_NAME periods'+str(b[0])+'.dat' + ' -LYSOGENY_RATE_MEAN '+ str(b[2])+ ' -LYSOGENY_RATE_DEVIATION '+ str(b[3])+' -THRESHOLD_EVOLVERS 1.0 -TIMING_REPEAT 500
+        command_str = './evo-algo -SEED '+str(a)+' -PERIODS '+str(b[0]) +' -RESETS '+str(b[1]*3)+' -FILE_PATH '+directory+' -FILE_NAME periods'+str(b[0])+'.dat' + ' -LYSOGENY_RATE_MEAN '+ str(b[2])+ ' -LYSOGENY_RATE_DEVIATION '+ str(b[3])+' -THRESHOLD_EVOLVERS 1.0 -TIMING_REPEAT 500'
         
         print(command_str)
         cmd(command_str)
